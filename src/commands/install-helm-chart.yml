@@ -22,6 +22,13 @@ parameters:
       command. Format: key1=val1,key2=val2
     type: string
     default: ""
+  value-files:
+    description: |
+      Override values in a chart with the values from the specified
+      helm value files using the --values flag of the helm install
+      command. Format: valuefile1.yaml valuefile2.yaml valuefile3.yaml
+    type: string
+    default: ""
   namespace:
     description: |
       The kubernetes namespace that should be used.
@@ -99,6 +106,7 @@ steps:
       command: |
         RELEASE_NAME="<< parameters.release-name >>"
         VALUES_TO_OVERRIDE="<< parameters.values-to-override >>"
+        VALUE_FILES="<< parameters.value-files >>"
         NAMESPACE="<< parameters.namespace >>"
         TLS="<< parameters.tls >>"
         TLS_CA_CERT="<< parameters.tls-ca-cert >>"
@@ -137,6 +145,12 @@ steps:
         fi
         if [ "${WAIT}" == "true" ]; then
           set -- "$@" --wait
+        fi
+        if [ -n ${VALUE_FILES} ]; then
+          VALUE_FILES=$(echo "$VALUE_FILES" | tr -s " ")               # remove redundant spaces
+          VALUE_FILES="${VALUE_FILES#"${VALUE_FILES%%[![:space:]]*}"}" # trim leading spaces
+          VALUE_FILES="${VALUE_FILES%"${VALUE_FILES##*[![:space:]]}"}" # trim trailing spaces
+          set -- "$@" -f ${VALUE_FILES// /" -f "}                      # interleave -f option
         fi
 
         VERSION_2_MATCH="$(helm version --short -c | grep 'Client: v2' || true)"
